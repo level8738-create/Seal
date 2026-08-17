@@ -1,0 +1,11 @@
+{
+  "name": "seal-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Seal video/watermark backend — server-side FFmpeg processing, no npm dependencies (uses only Node built-ins).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": { "node": ">=18" }
+}

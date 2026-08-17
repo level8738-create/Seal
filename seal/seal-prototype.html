@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Seal — Client Proofing & Pay-to-Unlock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#0a0b0e;
+  --surface:#14161b;
+  --elevated:#1c1f26;
+  --elevated-2:#242832;
+  --border:#2a2e37;
+  --ink:#edeef0;
+  --ink-muted:#8b909c;
+  --ink-faint:#5b6170;
+  --violet:#7c6cf6;
+  --violet-dim:#4a3fa0;
+  --violet-glow: rgba(124,108,246,0.35);
+  --red:#ff3355;
+  --red-dim:#3a1420;
+  --green:#35d399;
+  --amber:#f5a623;
+  --radius:16px;
+  --radius-sm:10px;
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  background:
+    radial-gradient(circle at 15% 0%, rgba(124,108,246,0.10), transparent 45%),
+    radial-gradient(circle at 85% 10%, rgba(255,51,85,0.06), transparent 40%),
+    var(--void);
+  color:var(--ink);
+  font-family:var(--font-body);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:inherit; text-decoration:none;}
+button{font-family:inherit; cursor:pointer;}
+::selection{background:var(--violet-glow);}
+::-webkit-scrollbar{width:10px; height:10px;}
+::-webkit-scrollbar-thumb{background:var(--elevated-2); border-radius:8px;}
+
+#app{max-width:1180px; margin:0 auto; padding:28px 28px 80px;}
+@media (max-width:640px){ #app{padding:16px 16px 60px;} }
+
+/* ---------- topbar ---------- */
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:32px;}
+.brand{display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-weight:700; font-size:19px; letter-spacing:-0.01em;}
+.brand .mark{width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--violet),var(--red)); display:flex; align-items:center; justify-content:center; font-size:16px;}
+.role-toggle{display:flex; background:var(--elevated); border:1px solid var(--border); border-radius:999px; padding:3px; gap:2px;}
+.role-toggle button{padding:6px 14px; border:none; background:transparent; color:var(--ink-muted); border-radius:999px; font-size:13px; font-weight:600; transition:all .2s;}
+.role-toggle button.active{background:var(--elevated-2); color:var(--ink);}
+.profile-menu{position:relative;}
+.avatar-btn{display:flex; align-items:center; gap:10px; background:var(--elevated); border:1px solid var(--border); padding:6px 12px 6px 6px; border-radius:999px; color:var(--ink);}
+.avatar{width:28px; height:28px; border-radius:50%; background:linear-gradient(135deg,#8f7ff9,#5b4bd6); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;}
+.plan-pill{font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; letter-spacing:.03em; text-transform:uppercase;}
+.plan-pill.free{background:var(--elevated-2); color:var(--ink-muted); border:1px solid var(--border);}
+.plan-pill.premium{background:linear-gradient(135deg,rgba(124,108,246,.25),rgba(255,51,85,.2)); color:#c9c1ff; border:1px solid rgba(124,108,246,.4);}
+.dropdown{position:absolute; right:0; top:calc(100% + 8px); width:240px; background:var(--elevated); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; box-shadow:0 20px 40px rgba(0,0,0,.5); display:none; z-index:40;}
+.dropdown.open{display:block; animation:pop .15s ease;}
+.dropdown .item{padding:10px 12px; border-radius:8px; font-size:13px;}
+.dropdown .item:hover{background:var(--elevated-2);}
+.dropdown .divider{height:1px; background:var(--border); margin:6px 0;}
+.dropdown .label{font-size:11px; color:var(--ink-faint); padding:6px 12px 2px;}
+@keyframes pop{from{opacity:0; transform:translateY(-4px);} to{opacity:1; transform:translateY(0);}}
+
+/* ---------- dashboard ---------- */
+.dash-head{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:22px; flex-wrap:wrap; gap:14px;}
+.dash-head h1{font-family:var(--font-display); font-size:26px; font-weight:600; letter-spacing:-0.01em;}
+.dash-head p{color:var(--ink-muted); font-size:13.5px; margin-top:4px;}
+.btn{border-radius:11px; padding:11px 18px; font-size:14px; font-weight:600; border:1px solid transparent; display:inline-flex; align-items:center; gap:8px; transition:transform .12s, box-shadow .12s, background .15s;}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:linear-gradient(135deg,var(--violet),#9b6cf6); color:white; box-shadow:0 8px 24px rgba(124,108,246,.35);}
+.btn-primary:hover{box-shadow:0 10px 30px rgba(124,108,246,.5);}
+.btn-ghost{background:var(--elevated); color:var(--ink); border-color:var(--border);}
+.btn-ghost:hover{background:var(--elevated-2);}
+.btn-danger{background:var(--red); color:white;}
+.btn-danger:hover{filter:brightness(1.08);}
+.btn-sm{padding:8px 12px; font-size:13px; border-radius:9px;}
+.btn:disabled{opacity:.45; cursor:not-allowed; transform:none; box-shadow:none;}
+
+.project-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px;}
+.pcard{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; position:relative; transition:border-color .15s, transform .15s; cursor:pointer;}
+.pcard:hover{border-color:#3b3f4c; transform:translateY(-2px);}
+.pcard .pin-flag{position:absolute; top:14px; left:14px; color:var(--amber); font-size:13px;}
+.pcard .dots{position:absolute; top:12px; right:10px; padding:6px 8px; border-radius:8px; color:var(--ink-muted); font-size:16px; letter-spacing:2px;}
+.pcard .dots:hover{background:var(--elevated-2); color:var(--ink);}
+.pcard .thumb{height:110px; border-radius:10px; background:linear-gradient(135deg,var(--elevated),var(--elevated-2)); margin-bottom:14px; display:flex; align-items:center; justify-content:center; font-size:26px; color:var(--ink-faint); overflow:hidden;}
+.pcard h3{font-family:var(--font-display); font-size:15.5px; font-weight:600; margin-bottom:8px; padding-right:20px;}
+.pcard .meta-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.status-chip{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em;}
+.client-lock-badge{font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; letter-spacing:.02em; display:inline-flex; align-items:center; gap:5px;}
+.client-lock-badge.pending{background:var(--red-dim); color:#ff8fa3; border:1px solid rgba(255,51,85,.3);}
+.client-lock-badge.paid{background:rgba(53,211,153,.15); color:var(--green); border:1px solid rgba(53,211,153,.3);}
+.status-chip.pending{background:var(--red-dim); color:#ff8fa3;}
+.status-chip.paid{background:rgba(53,211,153,.15); color:var(--green);}
+.status-chip.processing{background:rgba(245,166,35,.12); color:var(--amber);}
+.pcard .date{font-size:11.5px; color:var(--ink-faint); margin-top:10px;}
+
+.empty-state{border:1px dashed var(--border); border-radius:var(--radius); padding:60px 20px; text-align:center; color:var(--ink-muted);}
+.empty-state .big{font-size:34px; margin-bottom:10px;}
+.empty-state h3{font-family:var(--font-display); color:var(--ink); font-size:17px; margin-bottom:6px;}
+
+.limit-banner{margin-top:22px; background:linear-gradient(135deg,rgba(255,51,85,.09),rgba(124,108,246,.06)); border:1px solid rgba(255,51,85,.25); border-radius:var(--radius); padding:16px 18px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+.limit-banner strong{font-family:var(--font-display); font-size:14px;}
+.limit-banner p{font-size:12.5px; color:var(--ink-muted); margin-top:2px;}
+
+/* ---------- new project ---------- */
+.back-row{display:flex; align-items:center; gap:12px; margin-bottom:26px;}
+.back-btn{width:36px; height:36px; border-radius:10px; background:var(--elevated); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--ink);}
+.back-btn:hover{background:var(--elevated-2);}
+.form-shell{max-width:640px; margin:0 auto;}
+.form-shell h1{font-family:var(--font-display); font-size:24px; margin-bottom:4px;}
+.form-shell>p.sub{color:var(--ink-muted); font-size:13.5px; margin-bottom:28px;}
+.field{margin-bottom:22px;}
+.field label{display:block; font-size:13px; font-weight:600; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;}
+.field label .req{color:var(--red); font-size:11px; font-weight:700;}
+input[type=text], textarea{width:100%; background:var(--surface); border:1px solid var(--border); border-radius:11px; padding:13px 14px; color:var(--ink); font-size:14px; font-family:inherit; transition:border-color .15s;}
+input[type=text]:focus, textarea:focus{outline:none; border-color:var(--violet);}
+.hint{font-size:12px; color:var(--ink-faint); margin-top:7px; line-height:1.5;}
+.hint.warn{color:#ff9fb1; background:var(--red-dim); border:1px solid rgba(255,51,85,.25); padding:10px 12px; border-radius:9px; margin-top:9px;}
+.hint.info{color:#b7aef7; background:rgba(124,108,246,.08); border:1px solid rgba(124,108,246,.25); padding:10px 12px; border-radius:9px; margin-top:9px;}
+
+.dropzone{border:1.5px dashed var(--border); border-radius:var(--radius); padding:30px 20px; text-align:center; transition:border-color .15s, background .15s; background:var(--surface);}
+.dropzone.drag{border-color:var(--violet); background:rgba(124,108,246,.06);}
+.dropzone .icon{font-size:26px; margin-bottom:8px;}
+.dropzone .cta{color:var(--violet); font-weight:600; font-size:13.5px;}
+.dropzone input{display:none;}
+.file-list{margin-top:14px; display:flex; flex-direction:column; gap:8px;}
+.file-row-wrap{display:flex; flex-direction:column;}
+.file-row{display:flex; align-items:center; gap:10px; background:var(--elevated); border:1px solid var(--border); border-radius:9px; padding:9px 12px; font-size:12.5px;}
+.file-row.has-error{border-radius:9px 9px 0 0; border-bottom:none;}
+.file-row .fname{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.file-row .fsize{color:var(--ink-faint); font-family:var(--font-mono); font-size:11px;}
+.file-row .rm{color:var(--ink-faint); padding:6px 8px; min-width:28px; min-height:28px; display:flex; align-items:center; justify-content:center; touch-action:manipulation;}
+.file-row .rm:hover{color:var(--red);}
+/* Error detail renders as real, always-visible text (see renderFileList)
+   instead of a hover-only `title` tooltip, which never shows on a
+   mobile tap — this is what actually surfaces the failure reason on
+   phones. */
+.file-row-error{border:1px solid rgba(255,51,85,.25); border-top:none; border-radius:0 0 9px 9px; background:var(--red-dim); padding:8px 12px; font-size:11.5px; color:#ff9fb1; line-height:1.5;}
+.file-row-tip{margin-top:5px; color:var(--ink-muted); font-size:11px;}
+.file-row-tip code{background:rgba(0,0,0,.3); padding:1px 5px; border-radius:4px; font-family:var(--font-mono); font-size:10.5px; word-break:break-all;}
+.file-row .rm:hover{color:var(--red);}
+.wm-row{display:flex; gap:10px; flex-wrap:wrap;}
+.wm-row .locked-chip{align-self:center; font-size:11px; background:var(--elevated-2); color:var(--ink-faint); padding:5px 10px; border-radius:999px; border:1px solid var(--border); cursor:pointer;}
+.wm-row .locked-chip:hover{color:var(--ink-muted);}
+
+.create-btn-wrap{position:sticky; bottom:0; padding-top:20px; background:linear-gradient(to top, var(--void) 60%, transparent);}
+.btn-create{width:100%; padding:16px; font-size:15px; border-radius:13px; background:linear-gradient(135deg,var(--violet) 0%,#9b6cf6 45%, var(--red) 130%); color:white; font-weight:700; letter-spacing:.01em; box-shadow:0 10px 32px rgba(124,108,246,.3);}
+.btn-create:disabled{background:var(--elevated-2); box-shadow:none; color:var(--ink-faint);}
+
+/* ---------- project owner / client view ---------- */
+.proj-head{display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:22px; flex-wrap:wrap;}
+.proj-title{font-family:var(--font-display); font-size:24px; font-weight:600;}
+.link-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; display:flex; align-items:center; gap:12px; margin-bottom:24px; flex-wrap:wrap;}
+.link-card .lbl{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); font-weight:700; margin-bottom:5px;}
+.link-card .url{font-family:var(--font-mono); font-size:13px; color:#b7aef7; word-break:break-all;}
+.link-card .grow{flex:1; min-width:200px;}
+
+.section-title{font-family:var(--font-display); font-size:15px; font-weight:600; margin:26px 0 14px; display:flex; align-items:center; gap:8px;}
+
+.media-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px;}
+.media-card{background:var(--surface); border:1px solid var(--border); border-radius:13px; overflow:hidden; cursor:pointer; transition:transform .15s, border-color .15s;}
+.media-card:hover{transform:translateY(-2px); border-color:#3b3f4c;}
+.media-preview-wrap{position:relative; aspect-ratio:4/3; background:#000; overflow:hidden;}
+.media-preview-wrap img, .media-preview-wrap video{width:100%; height:100%; object-fit:cover; pointer-events:none;}
+.wm-overlay{position:absolute; inset:0; pointer-events:none; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+.wm-tile{position:absolute; color:rgba(255,51,85,.85); font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:.06em; text-transform:uppercase; text-shadow:0 1px 3px rgba(0,0,0,.6); white-space:nowrap; transform:rotate(-22deg);}
+.wm-center{position:absolute; color:rgba(255,255,255,.95); font-family:var(--font-display); font-weight:700; font-size:20px; letter-spacing:.05em; text-transform:uppercase; text-shadow:0 2px 8px rgba(0,0,0,.8); background:rgba(139,0,0,.62); padding:8px 18px; border-radius:8px; animation:driftwm 7s ease-in-out infinite;}
+@keyframes driftwm{
+  0%{transform:translate(-38%,-32%);}
+  25%{transform:translate(24%,-10%);}
+  50%{transform:translate(-10%,28%);}
+  75%{transform:translate(-30%,10%);}
+  100%{transform:translate(-38%,-32%);}
+}
+.media-meta{padding:10px 12px;}
+.media-meta .mname{font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.media-meta .mtype{font-size:11px; color:var(--ink-faint); margin-top:2px;}
+.no-rightclick-badge{position:absolute; bottom:6px; right:6px; font-size:9.5px; background:rgba(0,0,0,.55); color:rgba(255,255,255,.7); padding:2px 6px; border-radius:5px; letter-spacing:.03em;}
+
+/* file-mode preview (click-to-view instead of always-on media) */
+.media-preview-wrap.file-mode{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; background:linear-gradient(135deg,var(--elevated),var(--elevated-2));}
+.media-preview-wrap.file-mode .file-icon{font-size:38px;}
+.media-preview-wrap.file-mode .view-hint{font-size:11px; color:var(--ink-muted); background:rgba(0,0,0,.35); padding:4px 11px; border-radius:999px; display:flex; align-items:center; gap:5px;}
+.media-card:hover .view-hint{color:var(--ink); background:rgba(124,108,246,.25);}
+
+/* lightbox viewer
+   Mobile note: 100vw/100vh drift from the real visible area on phones
+   (the address bar shows/hides and changes the layout viewport height
+   mid-interaction), which was pushing/clipping the back button. The
+   backdrop below is already `position:fixed; inset:0`, so sizing to
+   100% of it — instead of vw/vh — ties the lightbox to the actual
+   fixed box the browser is already keeping visible, not a unit that
+   moves under it. Safe-area insets keep both buttons clear of notches
+   and rounded corners, and both are sized to a real touch target. */
+.lightbox-backdrop{z-index:300; padding:0;}
+.lightbox{position:relative; width:100%; height:100%; max-width:100%; max-height:100%; background:#000; border:none; border-radius:0; padding:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; animation:pop .18s ease;}
+.lightbox-back{position:absolute; top:calc(16px + env(safe-area-inset-top)); left:calc(16px + env(safe-area-inset-left)); display:flex; align-items:center; gap:8px; padding:8px 14px 8px 10px; min-height:44px; border-radius:999px; background:rgba(20,22,27,.85); border:1px solid var(--border); color:var(--ink); font-size:13px; font-weight:600; z-index:5; backdrop-filter:blur(6px); touch-action:manipulation; max-width:calc(100% - 32px - env(safe-area-inset-left) - env(safe-area-inset-right) - 52px);}
+.lightbox-back:hover{background:var(--elevated-2);}
+.lightbox-back span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.lightbox-close{position:absolute; top:calc(16px + env(safe-area-inset-top)); right:calc(16px + env(safe-area-inset-right)); width:40px; height:40px; min-width:40px; border-radius:50%; background:rgba(20,22,27,.85); border:1px solid var(--border); color:var(--ink); font-size:14px; z-index:4; backdrop-filter:blur(6px); touch-action:manipulation;}
+.lightbox-close:hover{background:var(--red); border-color:var(--red);}
+.lightbox-media-wrap{position:relative; width:100%; height:100%; max-width:100%; max-height:100%; display:flex; align-items:center; justify-content:center; overflow:hidden; background:#000;}
+.lightbox-media-wrap img{max-width:100%; max-height:100%; object-fit:contain; pointer-events:none;}
+.lightbox-media-wrap video{max-width:100%; max-height:100%; object-fit:contain;}
+.lightbox-loading{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--ink-muted); font-size:12.5px; background:rgba(0,0,0,.4); letter-spacing:.02em;}
+.lightbox-error{max-width:320px; padding:34px 22px; text-align:center; color:var(--ink-muted); font-size:13px; line-height:1.65;}
+.lightbox-caption{position:absolute; bottom:calc(16px + env(safe-area-inset-bottom)); left:0; right:0; text-align:center; font-size:12.5px; color:rgba(255,255,255,.75); z-index:2; padding:0 60px;}
+@media (max-width:420px){
+  .lightbox-back span{display:none;}                 /* icon-only on very narrow screens so it can't overflow/wrap */
+  .lightbox-back{padding:10px; border-radius:50%; width:44px; min-width:44px;}
+}
+
+/* payment-complete expiry reminder */
+.expiry-warning{margin-top:12px; font-size:11px; color:var(--red); line-height:1.6; display:flex; align-items:flex-start; gap:6px;}
+.expiry-warning.mini{margin-top:8px; font-size:10.5px;}
+
+/* pay to unlock */
+.unlock-hero{border-radius:20px; padding:34px 26px; text-align:center; margin-bottom:26px; position:relative; overflow:hidden; border:1px solid var(--border);}
+.unlock-hero.pending{background:radial-gradient(circle at 50% 0%, rgba(255,51,85,.16), transparent 60%), var(--surface);}
+.unlock-hero.paid{background:radial-gradient(circle at 50% 0%, rgba(53,211,153,.16), transparent 60%), var(--surface);}
+.unlock-hero .lockicon{font-size:38px; margin-bottom:10px;}
+.unlock-hero h2{font-family:var(--font-display); font-size:22px; font-weight:700; letter-spacing:.02em; margin-bottom:8px;}
+.unlock-hero.pending h2{color:#ff8fa3;}
+.unlock-hero.paid h2{color:var(--green);}
+.unlock-hero p{color:var(--ink-muted); font-size:13.5px; max-width:420px; margin:0 auto 18px;}
+.original-link-box{margin-top:16px; background:var(--elevated); border:1px solid rgba(53,211,153,.3); border-radius:11px; padding:14px 16px; display:inline-flex; align-items:center; gap:10px; max-width:100%;}
+.original-link-box a{color:var(--green); font-family:var(--font-mono); font-size:12.5px; word-break:break-all;}
+
+.owner-tools{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; margin-bottom:22px;}
+.owner-tools .row{display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;}
+.owner-tools h4{font-family:var(--font-display); font-size:14.5px; margin-bottom:3px;}
+.owner-tools p{font-size:12.5px; color:var(--ink-muted);}
+
+/* modals */
+.modal-backdrop{position:fixed; inset:0; background:rgba(5,6,9,.7); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;}
+.modal{background:var(--elevated); border:1px solid var(--border); border-radius:16px; padding:24px; max-width:420px; width:100%; animation:pop .18s ease;}
+.modal h3{font-family:var(--font-display); font-size:17px; margin-bottom:10px;}
+.modal p{font-size:13.5px; color:var(--ink-muted); line-height:1.55; margin-bottom:20px;}
+.modal .actions{display:flex; justify-content:flex-end; gap:10px;}
+
+/* toasts */
+#toast-wrap{position:fixed; bottom:22px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:8px; z-index:200; align-items:center;}
+.toast{background:var(--elevated); border:1px solid var(--border); padding:11px 18px; border-radius:999px; font-size:13px; box-shadow:0 12px 30px rgba(0,0,0,.5); display:flex; align-items:center; gap:8px; animation:toastin .2s ease;}
+@keyframes toastin{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+
+.role-banner{font-size:11.5px; text-align:center; padding:7px; border-radius:999px; margin-bottom:20px; letter-spacing:.03em; font-weight:600;}
+.role-banner.client{background:rgba(124,108,246,.12); color:#b7aef7; border:1px solid rgba(124,108,246,.3);}
+.demo-note{font-size:11.5px; color:var(--ink-faint); text-align:center; margin-top:30px; line-height:1.6;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast-wrap"></div>
+
+<script>
+/* =========================================================
+   CENTRALIZED PLAN CONFIG  (section 20 requirement)
+   In production this would be fetched from the backend's
+   /api/plans config, never hard-coded per-component.
+   ========================================================= */
+const PLAN_LIMITS = {
+  free: {
+    label: 'Free',
+    maxProjectsPerMonth: 3,
+    maxFileSizeMB: 200,
+    advancedWatermark: false,
+    watermarkPositions: ['drift'],
+  },
+  premium: {
+    label: 'Premium',
+    maxProjectsPerMonth: Infinity,
+    maxFileSizeMB: 2000,
+    advancedWatermark: true,
+    watermarkPositions: ['drift','corner-static','tiled-dense','custom'],
+  }
+};
+
+/* =========================================================
+   BACKEND
+   Video processing now happens server-side (Node + FFmpeg/FFprobe).
+   Point this at wherever server.js is running.
+   ========================================================= */
+const API_BASE = (window.SEAL_API_BASE || 'http://localhost:8787');
+
+/* =========================================================
+   STATE
+   Project metadata persists via window.storage (personal).
+   Original video/photo bytes are NEVER turned into base64 and
+   NEVER written to window.storage. Images get a small compressed
+   JPEG preview (data URL) that's cheap enough to persist, same as
+   before. Videos are now processed server-side — the browser only
+   ever holds a persistent previewUrl (a server-hosted MP4 URL, not
+   a Blob), so it survives reloads and doesn't need to be
+   re-uploaded every session.
+   ========================================================= */
+let state = {
+  user: { name:'Alex Rivera', email:'alex@rivera.studio', plan:'free', id:'u_demo' },
+  projects: [],   // {id,name,originalLink,watermarkText,paymentStatus,pinned,createdAt,mediaCount}
+  route: '#/dashboard',
+  viewingRole: 'owner', // 'owner' | 'client'  (this demo plays both roles in one app)
+};
+const mediaStore = {}; // projectId -> [{id,name,type,size,previewUrl,kind:'image'|'video',jobId?}]
+// previewUrl is a small data: URL for images, or a persistent server URL
+// (API_BASE + /api/jobs/:jobId/preview.mp4) for videos — both survive a
+// page reload since neither is an in-memory Blob/Object URL anymore.
+let newProjectDraft = { name:'', originalLink:'', watermarkText:'PAY TO UNLOCK', files:[] };
+
+function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,10) + Date.now().toString(36).slice(-4); }
+
+async function loadState(){
+  try{
+    const r = await window.storage.get('seal:projects', false);
+    if(r && r.value) state.projects = JSON.parse(r.value);
+  }catch(e){ state.projects = []; }
+  try{
+    const r2 = await window.storage.get('seal:user', false);
+    if(r2 && r2.value) state.user = JSON.parse(r2.value);
+  }catch(e){ /* defaults stand */ }
+}
+async function saveProjects(){
+  try{ await window.storage.set('seal:projects', JSON.stringify(state.projects), false); }catch(e){}
+}
+async function saveUser(){
+  try{ await window.storage.set('seal:user', JSON.stringify(state.user), false); }catch(e){}
+}
+
+/* =========================================================
+   MEDIA PERSISTENCE
+   Each media item is stored under its own key so one huge
+   video failing to save can't take the rest of the project's
+   media down with it. window.storage caps a value at 5MB —
+   compressed image previews fit easily. Videos now store just a
+   small JSON record (jobId + a server previewUrl string), not the
+   video bytes themselves — the actual MP4 lives on the backend —
+   so it fits the cap easily too and survives a reload.
+   ========================================================= */
+async function saveMediaItem(projId, item){
+  const key = `seal:media:${projId}:${item.id}`;
+
+  if(item.kind === 'video'){
+    const meta = { id:item.id, name:item.name, kind:'video', size:item.size, type:'video/mp4', previewUrl:item.previewUrl, jobId:item.jobId };
+    try{
+      const res = await window.storage.set(key, JSON.stringify(meta), false);
+      return { ok:!!res, degraded:false };
+    }catch(e){
+      return { ok:false, degraded:false };
+    }
+  }
+
+  // images: compressed JPEG data URLs are small enough to persist directly
+  try{
+    const res = await window.storage.set(key, JSON.stringify(item), false);
+    if(res) return { ok:true, degraded:false };
+  }catch(e){ /* likely over the 5MB cap — fall through */ }
+  try{
+    const stripped = { id:item.id, name:item.name, kind:item.kind, size:item.size, type:item.type, previewUrl:null, previewUnavailable:true };
+    const res2 = await window.storage.set(key, JSON.stringify(stripped), false);
+    return { ok:!!res2, degraded:true };
+  }catch(e2){
+    return { ok:false, degraded:true };
+  }
+}
+async function loadMediaForProject(projId){
+  try{
+    const listing = await window.storage.list(`seal:media:${projId}:`, false);
+    if(!listing || !listing.keys || listing.keys.length===0) return [];
+    const items = [];
+    for(const key of listing.keys){
+      try{
+        const r = await window.storage.get(key, false);
+        if(r && r.value) items.push(JSON.parse(r.value));
+      }catch(e){ /* skip a corrupt/missing entry rather than fail the whole load */ }
+    }
+    return items;
+  }catch(e){
+    return [];
+  }
+}
+async function deleteMediaForProject(projId){
+  try{
+    const listing = await window.storage.list(`seal:media:${projId}:`, false);
+    if(listing && listing.keys){
+      for(const key of listing.keys){
+        try{ await window.storage.delete(key, false); }catch(e){}
+      }
+    }
+  }catch(e){}
+}
+/* Loads a project's media from storage the first time it's opened
+   (or after a reload) and re-renders once ready. mediaStore[id] is
+   `undefined` for "never loaded yet" vs `[]` for "loaded, empty". */
+async function ensureMediaLoaded(id){
+  if(mediaStore[id] !== undefined) return;
+  mediaStore[id] = await loadMediaForProject(id);
+  const hash = window.location.hash;
+  if(hash === '#/project/'+id || hash === '#/client/'+id) render();
+}
+function loadingBlock(){
+  return `<div class="empty-state" style="margin-top:40px;"><div class="big">⏳</div><h3>Loading media…</h3></div>`;
+}
+
+function toast(msg, tone){
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.innerHTML = `<span>${tone==='danger'?'⚠️':tone==='ok'?'✅':'●'}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3600);
+}
+
+function fmtDate(ts){
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+function fmtSize(bytes){
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(0)+' KB';
+  return (bytes/(1024*1024)).toFixed(1)+' MB';
+}
+function projectsThisMonth(){
+  const now = new Date();
+  return state.projects.filter(p=>{
+    const d = new Date(p.createdAt);
+    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+  }).length;
+}
+function planCfg(){ return PLAN_LIMITS[state.user.plan]; }
+
+/* =========================================================
+   AUTO-EXPIRY
+   Once a project is marked paid: the client link stops
+   working 24hrs later, and the whole project (metadata +
+   in-memory media) is purged 48hrs later. In production this
+   is a server-side cron/TTL job; here we check on load and
+   on an interval so the demo behaves the same way.
+   ========================================================= */
+const LINK_TTL_MS = 24 * 60 * 60 * 1000;
+const PROJECT_TTL_MS = 48 * 60 * 60 * 1000;
+
+function isLinkExpired(p){
+  return p.paymentStatus === 'paid' && p.paidAt && (Date.now() - p.paidAt) > LINK_TTL_MS;
+}
+function isProjectExpired(p){
+  return p.paymentStatus === 'paid' && p.paidAt && (Date.now() - p.paidAt) > PROJECT_TTL_MS;
+}
+function fmtDateTime(ts){
+  return new Date(ts).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+}
+async function purgeExpiredProjects(){
+  const expiredIds = state.projects.filter(isProjectExpired).map(p=>p.id);
+  if(expiredIds.length===0) return false;
+  state.projects = state.projects.filter(p=>!expiredIds.includes(p.id));
+  expiredIds.forEach(id=>delete mediaStore[id]);
+  await saveProjects();
+  await Promise.all(expiredIds.map(id=>deleteMediaForProject(id)));
+  return true;
+}
+
+/* ---------------- ROUTER ---------------- */
+window.addEventListener('hashchange', render);
+function go(route){ window.location.hash = route; }
+
+function render(){
+  const hash = window.location.hash || '#/dashboard';
+  const app = document.getElementById('app');
+  closeAllDropdowns();
+  if(hash === '#/dashboard') return renderDashboard(app);
+  if(hash === '#/new') return renderNewProject(app);
+  if(hash.startsWith('#/project/')) return renderProjectOwner(app, hash.split('/')[2]);
+  if(hash.startsWith('#/client/')) return renderClientView(app, hash.split('/')[2]);
+  renderDashboard(app);
+}
+
+/* ---------------- SHARED CHROME ---------------- */
+function topbar(activeRoleBadge){
+  const plan = state.user.plan;
+  const cfg = planCfg();
+  return `
+  <div class="topbar">
+    <div class="brand"><div class="mark">🔒</div> Seal</div>
+    <div class="profile-menu">
+      <button class="avatar-btn" onclick="toggleDropdown(event)">
+        <div class="avatar">${state.user.name.split(' ').map(n=>n[0]).join('')}</div>
+        <span style="font-size:13px;font-weight:600;">${state.user.name}</span>
+        <span class="plan-pill ${plan}">${cfg.label}</span>
+      </button>
+      <div class="dropdown" id="profile-dropdown">
+        <div class="label">Signed in as</div>
+        <div class="item" style="cursor:default;">
+          <div style="font-weight:600;font-size:13px;">${state.user.name}</div>
+          <div style="color:var(--ink-faint);font-size:12px;">${state.user.email}</div>
+        </div>
+        <div class="divider"></div>
+        <div class="item" style="cursor:default;display:flex;justify-content:space-between;">
+          <span>Current plan</span><span class="plan-pill ${plan}">${cfg.label}</span>
+        </div>
+        ${plan==='free' ? `<div class="item" style="color:var(--violet);font-weight:600;" onclick="upgradePlan()">⚡ Upgrade to Premium</div>` : `<div class="item" style="color:var(--ink-muted);" onclick="downgradePlan()">Manage subscription</div>`}
+        <div class="divider"></div>
+        <div class="item" style="color:var(--ink-muted);">Sign out</div>
+      </div>
+    </div>
+  </div>`;
+}
+function toggleDropdown(e){
+  e.stopPropagation();
+  const dd = document.getElementById('profile-dropdown');
+  dd.classList.toggle('open');
+}
+function closeAllDropdowns(){
+  document.querySelectorAll('.dropdown').forEach(d=>d.classList.remove('open'));
+}
+document.addEventListener('click', closeAllDropdowns);
+
+async function upgradePlan(){
+  state.user.plan = 'premium';
+  await saveUser();
+  toast('Upgraded to Premium — enjoy unlimited projects.', 'ok');
+  render();
+}
+async function downgradePlan(){
+  state.user.plan = 'free';
+  await saveUser();
+  toast('Switched back to Free plan.');
+  render();
+}
+
+/* ================= DASHBOARD ================= */
+function renderDashboard(app){
+  const cfg = planCfg();
+  const usedThisMonth = projectsThisMonth();
+  const atLimit = state.user.plan==='free' && usedThisMonth >= cfg.maxProjectsPerMonth;
+  const sorted = [...state.projects].sort((a,b)=> (b.pinned - a.pinned) || (b.createdAt - a.createdAt));
+
+  app.innerHTML = `
+    ${topbar()}
+    <div class="dash-head">
+      <div>
+        <h1>Your projects</h1>
+        <p>${state.projects.length} project${state.projects.length!==1?'s':''} · ${usedThisMonth}/${cfg.maxProjectsPerMonth===Infinity?'∞':cfg.maxProjectsPerMonth} created this month</p>
+      </div>
+      <button class="btn btn-primary" onclick="handleNewProjectClick()">
+        <span style="font-size:16px;line-height:0;">＋</span> New Project
+      </button>
+    </div>
+
+    ${sorted.length===0 ? `
+      <div class="empty-state">
+        <div class="big">📁</div>
+        <h3>No projects yet</h3>
+        <p>Create your first notebook, upload media, and send a protected client link.</p>
+        <div style="margin-top:18px;"><button class="btn btn-primary" onclick="handleNewProjectClick()">＋ New Project</button></div>
+      </div>
+    ` : `
+      <div class="project-grid">
+        ${sorted.map(p=>projectCard(p)).join('')}
+      </div>
+    `}
+
+    ${atLimit ? `
+      <div class="limit-banner">
+        <div>
+          <strong>Free plan limit reached</strong>
+          <p>You've used all ${cfg.maxProjectsPerMonth} projects for this month. Upgrade to Premium to create unlimited projects.</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="upgradePlan()">Upgrade to Premium</button>
+      </div>
+    ` : ''}
+
+    <div class="demo-note">Prototype note: project settings and compressed image previews persist between visits. Video previews are compressed in your browser and kept in memory for this session only — reloading the page will show "preview available for this session" until you re-upload.</div>
+  `;
+}
+
+function projectCard(p){
+  const mCount = (mediaStore[p.id]||[]).length || p.mediaCount || 0;
+  return `
+  <div class="pcard" onclick="go('#/project/${p.id}')">
+    ${p.pinned ? '<div class="pin-flag">📌</div>' : ''}
+    <div class="dots" onclick="event.stopPropagation(); openCardMenu(event,'${p.id}')">⋯</div>
+    <div class="thumb">${mCount>0 ? '🎬' : '＋'}</div>
+    <h3>${escapeHtml(p.name)}</h3>
+    <div class="meta-row">
+      <span class="status-chip ${p.paymentStatus==='paid'?'paid':'pending'}">${p.paymentStatus==='paid'?'Payment Complete':'Payment Pending'}</span>
+      <span style="font-size:11.5px;color:var(--ink-faint);">${mCount} file${mCount!==1?'s':''}</span>
+    </div>
+    <div class="date">Created ${fmtDate(p.createdAt)}</div>
+    ${p.paymentStatus==='paid' ? `<div class="expiry-warning mini">⚠️ <span>Auto-deletes ${fmtDateTime(p.paidAt + PROJECT_TTL_MS)}</span></div>` : ''}
+  </div>`;
+}
+
+function openCardMenu(e, id){
+  // simple inline confirm-based menu for pin/delete, mobile-friendly
+  const p = state.projects.find(x=>x.id===id);
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.onclick = (ev)=>{ if(ev.target===backdrop) backdrop.remove(); };
+  backdrop.innerHTML = `
+    <div class="modal" style="max-width:280px;">
+      <h3 style="margin-bottom:16px;">${escapeHtml(p.name)}</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-ghost" onclick="togglePin('${id}'); this.closest('.modal-backdrop').remove();">${p.pinned?'📌 Unpin project':'📌 Pin to top'}</button>
+        <button class="btn btn-ghost" style="color:#ff8fa3;" onclick="doDelete('${id}')">🗑 Delete project</button>
+        <button class="btn btn-ghost" onclick="this.closest('.modal-backdrop').remove();">Cancel</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+}
+
+async function togglePin(id){
+  const p = state.projects.find(x=>x.id===id);
+  p.pinned = !p.pinned;
+  await saveProjects();
+  toast(p.pinned ? 'Project pinned.' : 'Project unpinned.');
+  render();
+}
+
+// Deletes immediately on click — the card menu (⋯ → Delete project) is
+// itself the deliberate confirmation step, so there's no second modal
+// to get stuck on (this was the mobile bug: the nested confirm dialog
+// could fail to open/close reliably on touch). One tap, gone.
+async function doDelete(id){
+  state.projects = state.projects.filter(p=>p.id!==id);
+  delete mediaStore[id];
+  await saveProjects();
+  await deleteMediaForProject(id);
+  document.querySelectorAll('.modal-backdrop').forEach(b=>b.remove());
+  toast('Project deleted.');
+  go('#/dashboard');
+}
+
+function handleNewProjectClick(){
+  const cfg = planCfg();
+  if(state.user.plan==='free' && projectsThisMonth() >= cfg.maxProjectsPerMonth){
+    toast('Free plan limit reached. Upgrade to Premium to create unlimited projects.', 'danger');
+    return;
+  }
+  newProjectDraft = { name:'', originalLink:'', watermarkText:'PAY TO UNLOCK', files:[] };
+  go('#/new');
+}
+
+/* ================= NEW PROJECT ================= */
+function renderNewProject(app){
+  const cfg = planCfg();
+  const d = newProjectDraft;
+  const ready = d.name.trim().length>0 && d.originalLink.trim().length>0 && d.files.length>0;
+
+  app.innerHTML = `
+    ${topbar()}
+    <div class="back-row">
+      <button class="back-btn" onclick="go('#/dashboard')">←</button>
+      <span style="color:var(--ink-muted);font-size:13.5px;">Back to dashboard</span>
+    </div>
+    <div class="form-shell">
+      <h1>New project</h1>
+      <p class="sub">Set up a notebook for your client. We'll generate a protected, watermarked preview automatically.</p>
+
+      <div class="field">
+        <label>Project Name <span class="req">Required</span></label>
+        <input type="text" id="f-name" placeholder="e.g. Rivera Wedding — Final Edit" value="${escapeHtml(d.name)}" oninput="newProjectDraft.name=this.value; syncCreateBtn(); reprocessAllImageDrafts();">
+      </div>
+
+      <div class="field">
+        <label>Media <span class="req">Required</span></label>
+        <div class="dropzone" id="dropzone" role="button" tabindex="0" ondragover="event.preventDefault(); this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)" onclick="document.getElementById('file-input').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); document.getElementById('file-input').click();}">
+          <div class="icon">⬆️</div>
+          <div class="cta">Drag & drop video or photos, or <span style="text-decoration:underline;">browse</span></div>
+          <div style="font-size:11.5px;color:var(--ink-faint);margin-top:6px;">Free plan: up to ${cfg.maxFileSizeMB} MB per file</div>
+          <input type="file" id="file-input" multiple accept="video/*,image/*" onchange="handleFileSelect(event)" onclick="event.stopPropagation()">
+        </div>
+        <div class="hint warn">Videos and photos are compressed and protected with a burned-in watermark.</div>
+        <div class="file-list" id="file-list">${renderFileList()}</div>
+      </div>
+
+      <div class="field">
+        <label>Original File Link <span class="req">Required</span></label>
+        <input type="text" id="f-link" placeholder="https://drive.google.com/... or Dropbox / OneDrive link" value="${escapeHtml(d.originalLink)}" oninput="newProjectDraft.originalLink=this.value; syncCreateBtn();">
+        <div class="hint info">After the project is marked as paid, the original file link will become available to the client. It stays hidden until then.</div>
+      </div>
+
+      <div class="field">
+        <label>Watermark Text</label>
+        <div class="wm-row">
+          <input type="text" id="f-wm" style="flex:1;min-width:180px;${cfg.advancedWatermark?'':'opacity:.6;cursor:not-allowed;'}" value="${escapeHtml(d.watermarkText)}" ${cfg.advancedWatermark ? `oninput="newProjectDraft.watermarkText=this.value; reprocessAllImageDrafts();"` : `readonly onclick="lockedFeature()" onfocus="this.blur(); lockedFeature();"`}>
+          ${!cfg.advancedWatermark ? `<span class="locked-chip" onclick="lockedFeature()">🔒 Upgrade to edit</span>` : `<span class="locked-chip" style="color:var(--violet);border-color:var(--violet-dim);" onclick="toast('Advanced position picker coming soon in this prototype.')">✨ Position & density</span>`}
+        </div>
+        ${!cfg.advancedWatermark ? `<div class="hint">Free plan uses the default "PAY TO UNLOCK" watermark. Upgrade to Premium to customize the text.</div>` : ''}
+      </div>
+
+      <div class="create-btn-wrap">
+        <button class="btn btn-create" id="create-btn" ${ready?'':'disabled'} onclick="createProject()">Create Project →</button>
+      </div>
+    </div>
+  `;
+}
+
+function lockedFeature(){
+  toast('Advanced watermark customization is available with Premium.', 'danger');
+}
+
+function renderFileList(){
+  if(newProjectDraft.files.length===0) return '';
+  return newProjectDraft.files.map((f,i)=>{
+    let statusEl = '';
+    if(f.kind==='video'){
+      if(f.processing){
+        const stageLabel = f.processStage==='uploading' ? 'Uploading…' : `Processing on server… ${f.processProgress||0}%`;
+        statusEl = `<span class="fsize" style="color:var(--violet);">⏳ ${stageLabel}</span>`;
+      } else if(f.error){
+        statusEl = `<span class="fsize" style="color:#ff8fa3;">⚠️ Processing failed</span>`;
+      } else if(f.previewUrl){
+        statusEl = `<span class="fsize" style="color:var(--green);">✓ Processed</span>`;
+      }
+    } else if(f.kind==='image'){
+      if(f.processing){
+        statusEl = `<span class="fsize" style="color:var(--violet);">⏳ Compressing & watermarking…</span>`;
+      } else if(f.error){
+        statusEl = `<span class="fsize" style="color:#ff8fa3;">⚠️ Processing failed</span>`;
+      } else if(f.previewUrl){
+        statusEl = `<span class="fsize" style="color:var(--green);">✓ Compressed (${fmtSize(Math.round(f.previewUrl.length*0.75))})</span>`;
+      }
+    }
+    // Error detail used to live only in a hover `title` tooltip, which
+    // never shows on a mobile tap — so on phones the reason was
+    // completely invisible. Render it as a real line under the row
+    // instead, plus a concrete next step for the one failure mode
+    // (unsupported codec) that re-trying can never fix on its own.
+    const errorDetail = f.error ? `
+      <div class="file-row-error">
+        <div>${escapeHtml(f.error)}</div>
+        ${f.unsupportedCodec ? `<div class="file-row-tip">This browser can't decode this file at all — re-encode it as H.264/AAC .mp4 or .webm (e.g. HandBrake, or <code>ffmpeg -i in.mp4 -c:v libx264 -c:a aac out.mp4</code>) and re-upload.</div>` : ''}
+      </div>` : '';
+    return `
+    <div class="file-row-wrap">
+      <div class="file-row${f.error?' has-error':''}">
+        <span>${f.kind==='video'?'🎬':'🖼'}</span>
+        <span class="fname">${escapeHtml(f.name)}</span>
+        <span class="fsize">${fmtSize(f.size)}</span>
+        ${statusEl}
+        <span class="rm" onclick="removeFile(${i})">✕</span>
+      </div>
+      ${errorDetail}
+    </div>`;
+  }).join('');
+}
+function refreshFileList(){
+  const list = document.getElementById('file-list');
+  if(list) list.innerHTML = renderFileList();
+}
+function syncCreateBtn(){
+  const btn = document.getElementById('create-btn');
+  if(!btn) return;
+  const d = newProjectDraft;
+  const stillProcessing = d.files.some(f=>(f.kind==='video'||f.kind==='image') && f.processing);
+  const hasBlockingError = d.files.some(f=>(f.kind==='video' && f.error && !f.previewUrl) || (f.kind==='image' && f.error && !f.previewUrl));
+  const ready = d.name.trim().length>0 && d.originalLink.trim().length>0 && d.files.length>0 && !stillProcessing && !hasBlockingError;
+  btn.disabled = !ready;
+  btn.textContent = stillProcessing ? 'Processing…' : 'Create Project →';
+}
+function removeFile(i){
+  newProjectDraft.files.splice(i,1);
+  document.getElementById('file-list').innerHTML = renderFileList();
+  syncCreateBtn();
+}
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag');
+  ingestFiles(e.dataTransfer.files);
+}
+function handleFileSelect(e){ ingestFiles(e.target.files); }
+
+function ingestFiles(fileList){
+  const cfg = planCfg();
+  const maxBytes = cfg.maxFileSizeMB * 1024 * 1024;
+  [...fileList].forEach(file=>{
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    if(!isVideo && !isImage){
+      toast('Unsupported file type. Please upload video or photo files.', 'danger');
+      return;
+    }
+    if(file.size > maxBytes){
+      toast(`Maximum file size on the Free plan is ${cfg.maxFileSizeMB} MB. Upgrade to Premium for larger uploads.`, 'danger');
+      return;
+    }
+
+    if(isImage){
+      // Images: read as a data URL, then IMMEDIATELY kick off the
+      // compress + burned-in-watermark pass in the background — the
+      // same moment the file lands, not when "Create Project" is
+      // clicked. This mirrors the video flow below, so by the time the
+      // user has filled in the rest of the form and hits Create,
+      // there's no processing left to do and the click is instant.
+      const reader = new FileReader();
+      reader.onload = (ev)=>{
+        const draftItem = {
+          id: uid('m'), name: file.name, size: file.size, type: file.type,
+          kind: 'image', rawDataUrl: ev.target.result,
+          processing: true, error: null, previewUrl: null,
+        };
+        newProjectDraft.files.push(draftItem);
+        refreshFileList();
+        syncCreateBtn();
+        processImageDraftItem(draftItem);
+      };
+      reader.onerror = ()=>{
+        toast(`Could not read image "${file.name}". The file may be corrupt.`, 'danger');
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    // VIDEO: never call FileReader.readAsDataURL() on the original file —
+    // that would inline the whole video as a giant base64 string, and the
+    // browser doesn't need to decode it at all anymore. The File object is
+    // streamed directly to the backend as a raw request body; FFmpeg does
+    // all decoding/watermarking/encoding server-side (see uploadVideo()),
+    // so browser codec support is irrelevant here — H.265/HEVC and anything
+    // else the server's FFmpeg build can decode works the same way.
+    const draftItem = {
+      id: uid('m'), name: file.name, size: file.size, type: file.type,
+      kind: 'video',
+      processing: true,
+      processProgress: 0,
+      processStage: 'uploading',
+      previewUrl: null,
+      jobId: null,
+      error: null,
+    };
+    newProjectDraft.files.push(draftItem);
+    refreshFileList();
+    syncCreateBtn();
+
+    // Watermark text/project name are baked in server-side at encode time,
+    // so capture them now — same as before, an already-processed video
+    // can't be cheaply re-watermarked if these fields change later.
+    uploadVideo(file, newProjectDraft.watermarkText, newProjectDraft.name, (stage, pct)=>{
+      draftItem.processStage = stage;
+      draftItem.processProgress = pct;
+      refreshFileList();
+    }).then(({previewUrl, jobId})=>{
+      draftItem.previewUrl = previewUrl;
+      draftItem.jobId = jobId;
+      draftItem.processing = false;
+      refreshFileList();
+      syncCreateBtn();
+    }).catch(err=>{
+      console.error('Video processing failed:', file.name, err);
+      draftItem.processing = false;
+      draftItem.error = (err && err.message) ? err.message : 'Video processing failed.';
+      refreshFileList();
+      syncCreateBtn();
+      toast(`Could not process "${file.name}": ${draftItem.error}`, 'danger');
+    });
+  });
+}
+
+/* Runs the compress + watermark pipeline for one image draft item
+   right away (called from ingestFiles the moment the file is read),
+   instead of waiting for Create Project to be clicked. Uses whatever
+   Project Name / Watermark Text are currently in the draft — if the
+   user changes either afterwards, reprocessAllImageDrafts() below
+   re-runs this for every image so the burned-in text stays accurate. */
+function processImageDraftItem(draftItem){
+  const d = newProjectDraft;
+  draftItem.processing = true;
+  draftItem.error = null;
+  refreshFileList();
+  compressImage(draftItem.rawDataUrl, d.watermarkText, d.name)
+    .then(preview=>{
+      draftItem.previewUrl = preview;
+      draftItem.processing = false;
+      refreshFileList();
+      syncCreateBtn();
+    })
+    .catch(err=>{
+      console.error('Image processing failed:', draftItem.name, err);
+      draftItem.processing = false;
+      draftItem.error = (err && err.message) ? err.message : 'Image processing failed.';
+      refreshFileList();
+      syncCreateBtn();
+      toast(`Could not process "${draftItem.name}": ${draftItem.error}`, 'danger');
+    });
+}
+
+// Project Name and Watermark Text are burned into every image preview.
+// Both fields can be edited after photos are already uploaded (Name
+// sits above the dropzone, but Watermark Text sits below it), so if
+// either changes we quietly re-run the already-uploaded images through
+// the pipeline in the background — debounced so fast typing doesn't
+// trigger a re-render on every keystroke. Create Project still never
+// waits on this; it just uses whatever preview is current when clicked.
+let _reprocessTimer = null;
+function reprocessAllImageDrafts(){
+  clearTimeout(_reprocessTimer);
+  _reprocessTimer = setTimeout(()=>{
+    newProjectDraft.files.forEach(f=>{
+      if(f.kind==='image' && !f.processing) processImageDraftItem(f);
+    });
+  }, 500);
+}
+
+/* =========================================================
+   VIDEO PIPELINE (server-side)
+   The browser NEVER decodes the original video for processing —
+   no <video> element, no canvas, no MediaRecorder, no
+   canPlayType() checks. The File is streamed directly as a raw
+   fetch() request body straight to disk on the backend (no
+   FileReader, no base64), which then runs:
+
+     upload -> private storage -> FFprobe -> async FFmpeg
+     (destructive per-region degrade + burned-in watermark text,
+     same 2x2 grid/positions as the photo pipeline) -> H.264/AAC
+     MP4 preview
+
+   This works identically for H.264, H.265/HEVC, VP9, AV1, etc. —
+   whatever the server's FFmpeg build can decode — regardless of
+   what the uploader's own browser can play. There's no 45s cap;
+   processing runs asynchronously and we poll for real progress.
+   ========================================================= */
+async function uploadVideo(file, watermarkText, projectName, onProgress){
+  onProgress && onProgress('uploading', 0);
+
+  const createRes = await fetch(`${API_BASE}/api/jobs`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ watermarkText, projectName, filename: file.name }),
+  });
+  if(!createRes.ok) throw new Error('Could not start a processing job on the server.');
+  const { jobId } = await createRes.json();
+
+  // Stream the raw File as the request body — fetch sends this from disk
+  // in chunks without ever loading it into a JS string/base64 buffer.
+  const uploadRes = await fetch(`${API_BASE}/api/jobs/${jobId}/upload`, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+  if(!uploadRes.ok){
+    const body = await uploadRes.json().catch(()=>({}));
+    throw new Error(body.error || `Upload failed (${uploadRes.status}).`);
+  }
+
+  onProgress && onProgress('processing', 0);
+
+  // Poll for job status until FFmpeg finishes (or errors). No client-side
+  // timeout — long clips just take longer; the server reports real
+  // percentage progress as it encodes.
+  return await new Promise((resolve, reject)=>{
+    const poll = async ()=>{
+      let statusRes;
+      try{ statusRes = await fetch(`${API_BASE}/api/jobs/${jobId}`); }
+      catch(e){ reject(new Error('Lost connection to the processing server.')); return; }
+      if(!statusRes.ok){ reject(new Error('Could not check processing status.')); return; }
+      const status = await statusRes.json();
+      if(status.status === 'error'){
+        reject(new Error(status.error || 'Server-side video processing failed.'));
+        return;
+      }
+      if(status.status === 'done'){
+        onProgress && onProgress('done', 100);
+        resolve({ previewUrl: API_BASE + status.previewUrl, jobId });
+        return;
+      }
+      onProgress && onProgress('processing', status.progress || 0);
+      setTimeout(poll, 1000);
+    };
+    poll();
+  });
+}
+
+/* =========================================================
+   IMAGE PROTECTED-PREVIEW PIPELINE
+   Original Image -> (private storage, kept in rawDataUrl only
+   until the project is created) -> downscale + recompress onto
+   a canvas -> DESTRUCTIVELY degrade the pixels under every future
+   watermark position -> burn the large, repeating, diagonal,
+   semi-transparent watermark text on top -> re-encode to JPEG.
+   The output dataURL is the ONLY thing that ever gets stored as
+   the "preview" — the full-resolution original never has a
+   watermark-free copy leave private storage before payment.
+
+   Critically, the destructive step runs BEFORE the visible text is
+   drawn, and touches the same regions the text will occupy. So even
+   if someone strips the visible watermark (crop, inpaint, AI
+   removal), what's revealed underneath is pixel data that was
+   already irreversibly altered — not the clean original. The clean
+   original was never present in this preview to begin with.
+
+   A real backend would run this same canvas-equivalent step
+   (e.g. sharp/libvips for the resize + a custom degradation pass)
+   server-side, so the raw original file is never sent to the client
+   at all. It's done in-browser here because this prototype has no
+   server, but the pixel data returned to the rest of the app is
+   always post-degradation/post-watermark, never a clean copy. */
+/* Builds ONE consistent watermark string used everywhere a watermark
+   is shown for this project — burned into the image pixels AND the
+   moving on-screen overlay for images/video. Using the project's
+   actual name (not just an internal ID) makes the watermark
+   meaningful to whoever sees it, and using this same function in
+   every place means the two never show different text. */
+function buildWatermarkText(watermarkText, projectName){
+  const clientLabel = (watermarkText && watermarkText.trim()) ? watermarkText.trim() : 'PAY TO UNLOCK';
+  const nameLabel = (projectName && projectName.trim()) ? projectName.trim().toUpperCase() : '';
+  const parts = [clientLabel];
+  if(nameLabel) parts.push(nameLabel);
+  parts.push('SEAL.APP');
+  return parts.join('   •   ');
+}
+
+/* Only TWO watermark instances are placed on the image (not a dense
+   tiled grid) so the underlying photo stays clearly visible for
+   client review. They're positioned diagonally — one upper-left-ish,
+   one lower-right-ish — using the same rotated local coordinate
+   frame the text pass draws in (translate(w/2,h/2) then rotate),
+   so a clip region built from these positions lines up exactly with
+   where the glyphs land. Both the destructive pixel pass and the
+   visible text pass consume this exact same 2-cell list, so each
+   degraded region always sits directly under its watermark — never
+   offset from it. */
+/* Four watermark instances arranged in a straight (non-diagonal) 2x2
+   grid — 2 rows, 2 columns — so the layout is predictable and the
+   underlying photo stays clearly visible. Both the destructive pixel
+   pass and the visible text pass consume this exact same cell list,
+   so each degraded region always sits directly under its watermark. */
+function computeWatermarkCells(w, h, angleRad){
+  const cx = w / 2, cy = h / 2;
+  const canvasPoints = [
+    { x: w * 0.27, y: h * 0.30 },   // row 1, col 1
+    { x: w * 0.73, y: h * 0.30 },   // row 1, col 2
+    { x: w * 0.27, y: h * 0.72 },   // row 2, col 1
+    { x: w * 0.73, y: h * 0.72 },   // row 2, col 2
+  ];
+  const cells = canvasPoints.map(p => canvasPointToLocal(p.x, p.y, cx, cy, angleRad));
+  return { cells, angleRad };
+}
+
+// Inverse of localToCanvasPoint below: given a point in canvas pixel
+// space, find the local-frame coordinate that would land there once
+// the translate(w/2,h/2)+rotate(angle) transform is applied.
+function canvasPointToLocal(px, py, cx, cy, angleRad){
+  const dx = px - cx, dy = py - cy;
+  const cos = Math.cos(angleRad), sin = Math.sin(angleRad);
+  return { x: dx * cos + dy * sin, y: -dx * sin + dy * cos };
+}
+
+// Rotate a local-frame point (relative to canvas center) into canvas
+// pixel coordinates using the same transform the text pass applies
+// via ctx.translate/ctx.rotate — so a clip region built from this
+// math lines up exactly with where the glyphs will be drawn.
+function localToCanvasPoint(x, y, cx, cy, angleRad){
+  const cos = Math.cos(angleRad), sin = Math.sin(angleRad);
+  return { x: cx + (x * cos - y * sin), y: cy + (x * sin + y * cos) };
+}
+
+/* Pre-allocates the scratch canvases used by the destructive pass so a
+   per-frame video caller can reuse the same three <canvas> elements
+   across the whole clip instead of allocating new ones 24x/sec. Also
+   includes a `clean` canvas the caller snapshots each frame's raw,
+   pre-degradation pixels into (the source the degradation layers are
+   built from). */
+function makeDegradeScratch(w, h){
+  const make = ()=>{ const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+  return { blurred: make(), shifted: make(), noise: make(), clean: make() };
+}
+
+/* THE DESTRUCTIVE PASS. For every watermark cell, clip to that cell's
+   rotated rectangle and irreversibly alter the pixels inside it by
+   layering several independent degradation techniques:
+     - a heavily blurred copy of the image  (high-frequency / fine-detail destruction)
+     - a slightly offset copy of the image, blended in (localized texture disruption,
+       patch/texture mixing from nearby pixels)
+     - a random-value noise field, blended with 'overlay' (controlled pixel perturbation)
+     - a faint random color wash unique per cell (local color/brightness variation)
+   None of these operations are reversible from the output pixels alone —
+   the original detail in each region has been mixed with neighboring
+   texture, blurred, and perturbed, not just visually covered. The
+   overall image still reads fine for client approval; only the exact
+   original pixel values are gone. */
+/* Optional `scratch` param: {blurred, shifted, noise} pre-allocated
+   canvases to reuse instead of creating three new <canvas> elements on
+   every call. Passed in by the video pipeline, which calls this once
+   per frame (24x/sec) and can't afford fresh canvas allocation every
+   time; the image pipeline calls this once per image and just omits
+   it, same as before. */
+function destructivelyDegradeWatermarkRegions(ctx, sourceCanvas, w, h, grid, fontSize, cellWidth, scratch){
+  const cx = w / 2, cy = h / 2;
+  const rectW = cellWidth + fontSize * 1.6;
+  const rectH = fontSize * 2.0;
+
+  const blurred = scratch ? scratch.blurred : document.createElement('canvas');
+  if(blurred.width !== w || blurred.height !== h){ blurred.width = w; blurred.height = h; }
+  const bctx = blurred.getContext('2d');
+  bctx.filter = 'blur(6px) saturate(90%)';
+  bctx.drawImage(sourceCanvas, 0, 0, w, h);
+
+  const shifted = scratch ? scratch.shifted : document.createElement('canvas');
+  if(shifted.width !== w || shifted.height !== h){ shifted.width = w; shifted.height = h; }
+  const sctx = shifted.getContext('2d');
+  sctx.filter = 'blur(1.5px)';
+  sctx.drawImage(sourceCanvas, 6, -5, w, h);   // small fixed offset — mixes in neighboring texture
+
+  const noise = scratch ? scratch.noise : document.createElement('canvas');
+  if(noise.width !== w || noise.height !== h){ noise.width = w; noise.height = h; }
+  const nctx = noise.getContext('2d');
+  const noiseData = nctx.createImageData(w, h);
+  for(let i = 0; i < noiseData.data.length; i += 4){
+    const v = 128 + Math.round((Math.random() - 0.5) * 70);
+    noiseData.data[i] = v; noiseData.data[i+1] = v; noiseData.data[i+2] = v; noiseData.data[i+3] = 255;
+  }
+  nctx.putImageData(noiseData, 0, 0);
+
+  grid.cells.forEach(cell=>{
+    const hw = rectW / 2, hh = rectH / 2;
+    const localCorners = [
+      { x: cell.x - hw, y: cell.y - hh },
+      { x: cell.x + hw, y: cell.y - hh },
+      { x: cell.x + hw, y: cell.y + hh },
+      { x: cell.x - hw, y: cell.y + hh },
+    ];
+    const corners = localCorners.map(p => localToCanvasPoint(p.x, p.y, cx, cy, grid.angleRad));
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(corners[0].x, corners[0].y);
+    for(let i = 1; i < corners.length; i++) ctx.lineTo(corners[i].x, corners[i].y);
+    ctx.closePath();
+    ctx.clip();
+
+    ctx.globalAlpha = 0.8;
+    ctx.drawImage(blurred, 0, 0, w, h);          // fine-detail destruction
+
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(shifted, 0, 0, w, h);          // texture disruption / patch mixing
+
+    ctx.globalAlpha = 0.5;
+    ctx.globalCompositeOperation = 'overlay';
+    ctx.drawImage(noise, 0, 0, w, h);            // controlled pixel perturbation
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.globalAlpha = 0.10;
+    ctx.fillStyle = `rgba(${110+Math.round(Math.random()*70)},${100+Math.round(Math.random()*70)},${100+Math.round(Math.random()*70)},1)`;
+    ctx.fillRect(0, 0, w, h);                    // slight local color/brightness variation
+
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  });
+}
+
+/* Draws `text` repeated edge-to-edge across the canvas on the same
+   diagonal, staggered grid used by the destructive pass above, so
+   every visible watermark instance sits directly over an already-
+   degraded region. Semi-transparent dark red, large relative to
+   image size, burned directly into the pixel data (not a DOM/CSS
+   overlay) so it survives screenshots, saves, and dev-tools
+   inspection alike. */
+function burnTiledWatermarkText(ctx, w, h, grid, fontSize, text){
+  ctx.save();
+  ctx.font = `700 ${fontSize}px 'Space Grotesk', Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(139,0,0,0.42)';      // dark red, semi-transparent — underlying image stays visible
+  ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+  ctx.lineWidth = Math.max(1, fontSize * 0.04);
+
+  ctx.translate(w / 2, h / 2);
+  ctx.rotate(grid.angleRad);
+  grid.cells.forEach(cell=>{
+    ctx.strokeText(text, cell.x, cell.y);
+    ctx.fillText(text, cell.x, cell.y);
+  });
+  ctx.restore();
+}
+
+/* Compress/downscale the image onto a canvas, then run the
+   destructive-degradation + visible-watermark pipeline before
+   encoding the final preview dataURL. Resolution + quality are both
+   reduced below delivery grade — this is a review/approval preview
+   only, never the final asset, and the regions under every watermark
+   have been permanently altered so removing the visible mark can't
+   recover the original. */
+function compressImage(dataUrl, watermarkText, projectName){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const maxDim = 1000;   // preview resolution cap — noticeably below typical camera/export originals (which are usually 3000px+)
+        const scale = Math.min(1, maxDim / Math.max(img.width,img.height));
+        const w = Math.max(1, Math.round(img.width*scale));
+        const h = Math.max(1, Math.round(img.height*scale));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+
+        // Snapshot the clean downscaled image as the source for the
+        // degradation layers, BEFORE any destructive edits happen —
+        // this is the last moment a full-quality copy exists at this
+        // resolution, and it never leaves this function.
+        const cleanSnapshot = document.createElement('canvas');
+        cleanSnapshot.width = w; cleanSnapshot.height = h;
+        cleanSnapshot.getContext('2d').drawImage(canvas, 0, 0);
+
+        const text = buildWatermarkText(watermarkText, projectName);
+        let fontSize = Math.max(22, Math.round(Math.min(w, h) * 0.062));   // large, but no longer tiled — dial back slightly so 2 marks read as bold rather than oversized
+        ctx.font = `700 ${fontSize}px 'Space Grotesk', Arial, sans-serif`;
+        let cellWidth = ctx.measureText(text).width;
+
+        // Each watermark sits in one of 2 COLUMNS (left ~27% / right ~73%
+        // of the width). If the text is wider than a column can hold, the
+        // left and right instances bleed into each other and the 2x2 grid
+        // visually collapses into what looks like just 2 full-width rows.
+        // Shrink the font until the text actually fits inside its column
+        // so both columns stay distinct and readable.
+        const maxTextWidth = w * 0.42;   // column width, minus a small margin
+        if(cellWidth > maxTextWidth){
+          const shrink = maxTextWidth / cellWidth;
+          fontSize = Math.max(12, Math.round(fontSize * shrink));
+          ctx.font = `700 ${fontSize}px 'Space Grotesk', Arial, sans-serif`;
+          cellWidth = ctx.measureText(text).width;
+        }
+        const angleRad = 0;   // straight, not diagonal — 2x2 grid of 4 watermarks
+        const grid = computeWatermarkCells(w, h, angleRad);
+
+        destructivelyDegradeWatermarkRegions(ctx, cleanSnapshot, w, h, grid, fontSize, cellWidth);
+        burnTiledWatermarkText(ctx, w, h, grid, fontSize, text);
+
+        // Lower JPEG quality — still reads fine visually at preview size,
+        // but meaningfully smaller than the original file, same as the
+        // video pipeline's bitrate cap below.
+        resolve(canvas.toDataURL('image/jpeg',0.55));
+      }catch(err){ reject(err instanceof Error ? err : new Error('Could not process this image.')); }
+    };
+    img.onerror = ()=> reject(new Error('Could not load this image — the file may be corrupt or an unsupported format.'));
+    img.src = dataUrl;
+  });
+}
+
+async function createProject(){
+  const cfg = planCfg();
+  if(state.user.plan==='free' && projectsThisMonth() >= cfg.maxProjectsPerMonth){
+    toast('Free plan limit reached. Upgrade to Premium to create unlimited projects.', 'danger');
+    return;
+  }
+  const d = newProjectDraft;
+  if(!d.name.trim() || !d.originalLink.trim() || d.files.length===0){
+    toast('Please complete all required fields.', 'danger');
+    return;
+  }
+  if(d.files.some(f=>(f.kind==='video'||f.kind==='image') && f.processing)){
+    toast('Please wait for processing to finish before creating the project.', 'danger');
+    return;
+  }
+
+  const btn = document.getElementById('create-btn');
+  btn.disabled = true;
+  btn.textContent = 'Creating project…';
+
+  const id = uid('proj');
+  const wmText = d.watermarkText.trim() || 'PAY TO UNLOCK';
+  const processedMedia = [];
+  const skipped = [];
+
+  // Every file was already compressed + watermarked in the background
+  // as it was uploaded (see processImageDraftItem / compressVideo in
+  // ingestFiles), so this loop is just assembling already-finished
+  // work — nothing here blocks on canvas/encoding, which is what
+  // makes clicking Create Project feel instant.
+  for(const f of d.files){
+    if(f.kind==='image'){
+      if(!f.previewUrl){
+        console.error('Image missing a compressed preview, skipping:', f.name);
+        skipped.push(f.name);
+        continue;
+      }
+      processedMedia.push({id:f.id, name:f.name, kind:'image', size:f.size, type:f.type, previewUrl:f.previewUrl});
+    } else {
+      // video: the file was already uploaded + processed server-side as
+      // it landed (see uploadVideo() in ingestFiles) — previewUrl points
+      // at the persistent, server-hosted MP4, not a session-only Blob.
+      if(!f.previewUrl || !f.jobId){
+        console.error('Video missing a processed preview, skipping:', f.name);
+        skipped.push(f.name);
+        continue;
+      }
+      processedMedia.push({
+        id:f.id, name:f.name, kind:'video', size:f.size, type:'video/mp4',
+        previewUrl:f.previewUrl, jobId:f.jobId,
+      });
+    }
+  }
+
+  if(processedMedia.length===0){
+    btn.disabled = false;
+    btn.textContent = 'Create Project →';
+    toast('Could not process any of the selected files. Please check the files and try again.', 'danger');
+    return;
+  }
+
+  mediaStore[id] = processedMedia;
+
+  const project = {
+    id, name:d.name.trim(), originalLink:d.originalLink.trim(),
+    watermarkText:wmText, paymentStatus:'pending', pinned:false,
+    createdAt: Date.now(), mediaCount: processedMedia.length,
+  };
+  state.projects.unshift(project);
+  await saveProjects();
+
+  btn.textContent = 'Saving…';
+  const saveResults = await Promise.all(processedMedia.map(m=>saveMediaItem(id, m)));
+  const degradedCount = saveResults.filter(r=>r.degraded).length;
+
+  if(skipped.length>0){
+    toast(`Project created, but ${skipped.length} file${skipped.length!==1?'s':''} couldn't be processed and ${skipped.length!==1?'were':'was'} skipped: ${skipped.join(', ')}.`, 'danger');
+  } else if(degradedCount>0){
+    toast(`Project created. ${degradedCount} photo${degradedCount!==1?'s':''} too large to store a re-viewable preview in this demo (re-upload to preview again after a reload).`, 'danger');
+  } else {
+    toast('Project created successfully.', 'ok');
+  }
+  go('#/project/'+id);
+}
+
+/* ================= PROJECT — OWNER VIEW ================= */
+function renderProjectOwner(app, id){
+  const p = state.projects.find(x=>x.id===id);
+  if(!p){ app.innerHTML = topbar() + notFoundBlock(); return; }
+  if(mediaStore[id] === undefined){
+    app.innerHTML = topbar() + loadingBlock();
+    ensureMediaLoaded(id);
+    return;
+  }
+  const media = mediaStore[id] || [];
+  const clientUrl = `https://seal.app/project/${id}`;
+
+  app.innerHTML = `
+    ${topbar()}
+    <div class="back-row">
+      <button class="back-btn" onclick="go('#/dashboard')">←</button>
+      <span style="color:var(--ink-muted);font-size:13.5px;">Back to dashboard</span>
+    </div>
+    <div class="proj-head">
+      <div>
+        <div class="proj-title">${escapeHtml(p.name)}</div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="status-chip ${p.paymentStatus==='paid'?'paid':'pending'}">${p.paymentStatus==='paid'?'Payment Complete':'Payment Pending'}</span>
+          <span class="client-lock-badge ${p.paymentStatus==='paid'?'paid':'pending'}">${p.paymentStatus==='paid'?'🔓 Unlocked for client':'🔒 PAY TO UNLOCK — shown to client'}</span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="go('#/client/${id}')">👁 Preview as client</button>
+    </div>
+
+    <div class="link-card">
+      <div class="grow">
+        <div class="lbl">Client Link</div>
+        <div class="url">${clientUrl}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="copyLink('${clientUrl}')">Copy Link</button>
+    </div>
+
+    <div class="owner-tools">
+      <div class="row">
+        <div>
+          <h4>Payment status</h4>
+          <p>${p.paymentStatus==='paid' ? 'Marked paid — the original file link is visible to your client.' : 'Confirm payment has been received before unlocking the original file.'}</p>
+        </div>
+        ${p.paymentStatus==='paid'
+          ? `<span class="status-chip paid">Unlocked ✓</span>`
+          : `<button class="btn btn-primary btn-sm" onclick="confirmMarkPaid('${id}')">Mark as Paid</button>`}
+      </div>
+      ${p.paymentStatus==='paid' ? `
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <div class="lbl" style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:6px;">Original file (owner access)</div>
+        <a href="${escapeAttr(p.originalLink)}" target="_blank" style="color:var(--green);font-family:var(--font-mono);font-size:12.5px;word-break:break-all;">${escapeHtml(p.originalLink)}</a>
+        <div class="expiry-warning">⚠️ <span>Client link expires ${fmtDateTime(p.paidAt + LINK_TTL_MS)} (24hrs after payment). This project auto-deletes ${fmtDateTime(p.paidAt + PROJECT_TTL_MS)} (48hrs after payment).</span></div>
+      </div>` : ''}
+    </div>
+
+    <div class="section-title">🎞 Media (${media.length})</div>
+    ${media.length===0 ? `<div class="empty-state"><p>No media in this project yet.</p></div>` : `
+    <div class="media-grid">
+      ${media.map(m=>mediaCard(m,p.watermarkText,id)).join('')}
+    </div>`}
+
+    <div class="demo-note">Owner tools: rename, watermark reconfiguration, and re-upload would live in Project Settings (kept out of this prototype for scope, but modeled in the architecture doc).</div>
+  `;
+}
+
+function mediaCard(m, wmText, projId){
+  // Video previews are now persistent server-hosted URLs (see
+  // uploadVideo()), so there's no "session expired" state anymore —
+  // only the same previewUnavailable case images can hit.
+  let badgeText = 'Protected';
+  if(m.previewUnavailable) badgeText = 'Re-upload needed';
+
+  let hintText = '👁 Click to view';
+  if(m.previewUnavailable) hintText = 'Preview unavailable';
+
+  return `
+  <div class="media-card" oncontextmenu="return false;" onclick="openMediaLightbox('${projId}','${m.id}')">
+    <div class="media-preview-wrap file-mode">
+      <div class="file-icon">${m.previewUnavailable ? '⚠️' : (m.kind==='video'?'🎬':'🖼')}</div>
+      <div class="view-hint">${hintText}</div>
+      <div class="no-rightclick-badge">${badgeText}</div>
+    </div>
+    <div class="media-meta">
+      <div class="mname">${escapeHtml(m.name)}</div>
+      <div class="mtype">${m.kind==='video'?'Video':'Photo'} · ${fmtSize(m.size)}</div>
+    </div>
+  </div>`;
+}
+
+function showLightboxError(mediaWrap, msg){
+  mediaWrap.innerHTML = `<div class="lightbox-error">⚠️ ${escapeHtml(msg)}</div>`;
+}
+
+/* Opens the actual video/photo full-size, with the watermark applied,
+   only when the user explicitly clicks the file — the grid itself
+   never shows raw media. Built with DOM APIs (not one big innerHTML
+   string) so large video data isn't re-parsed as HTML, and so we can
+   attach load/error/play handlers instead of failing silently. */
+function openMediaLightbox(projId, mediaId){
+  const p = state.projects.find(x=>x.id===projId);
+  const media = mediaStore[projId] || [];
+  const m = media.find(x=>x.id===mediaId);
+  if(!p || !m) return;
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop lightbox-backdrop';
+  backdrop.onclick = (ev)=>{ if(ev.target===backdrop) backdrop.remove(); };
+
+  const box = document.createElement('div');
+  box.className = 'lightbox';
+  box.oncontextmenu = ()=>false;
+
+  const backBtn = document.createElement('button');
+  backBtn.className = 'lightbox-back';
+  backBtn.innerHTML = '← <span>Back</span>';
+  backBtn.onclick = ()=> backdrop.remove();
+  box.appendChild(backBtn);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'lightbox-close';
+  closeBtn.textContent = '✕';
+  closeBtn.onclick = ()=> backdrop.remove();
+  box.appendChild(closeBtn);
+
+  const mediaWrap = document.createElement('div');
+  mediaWrap.className = 'lightbox-media-wrap';
+  box.appendChild(mediaWrap);
+
+  const caption = document.createElement('div');
+  caption.className = 'lightbox-caption';
+  caption.textContent = `${m.name} · ${m.kind==='video'?'Video':'Photo'} · ${fmtSize(m.size)}`;
+  box.appendChild(caption);
+
+  backdrop.appendChild(box);
+  document.body.appendChild(backdrop);
+
+  if(m.previewUnavailable){
+    showLightboxError(mediaWrap, `This file's preview wasn't kept — it was too large to save for a demo reload (browser storage cap). It's still listed here; re-upload it in a new project to preview it again. Your original file link is unaffected.`);
+    return;
+  }
+
+  if(m.kind === 'image'){
+    if(!m.previewUrl){
+      showLightboxError(mediaWrap, `No preview is available for this image.`);
+      return;
+    }
+    const img = document.createElement('img');
+    img.alt = m.name;
+    img.onerror = ()=> showLightboxError(mediaWrap, "This image couldn't be loaded.");
+    img.src = m.previewUrl;
+    mediaWrap.appendChild(img);
+
+    // Moving watermark overlay — NOT burned into the image pixels, just
+    // layered visually on top, same treatment as video below.
+    const imgOverlay = document.createElement('div');
+    imgOverlay.className = 'wm-overlay';
+    imgOverlay.innerHTML = `<div class="wm-center">${escapeHtml(buildWatermarkText(p.watermarkText, p.name))}</div>`;
+    mediaWrap.appendChild(imgOverlay);
+    return;
+  }
+
+  // video
+  if(!m.previewUrl){
+    showLightboxError(mediaWrap, `No preview is available for this video. Re-upload it in a new project to process it again. Your original file link is unaffected.`);
+    return;
+  }
+  // No canPlayType() gate needed anymore: the preview is always a
+  // server-transcoded H.264/AAC MP4, regardless of what codec the
+  // original upload used (H.265/HEVC, VP9, etc.) — every browser that
+  // can play <video> at all can play this.
+
+  const video = document.createElement('video');
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.controls = true;
+  video.setAttribute('controlsList', 'nodownload noremoteplayback');
+  video.oncontextmenu = ()=>false;
+  mediaWrap.appendChild(video);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'wm-overlay';
+  overlay.innerHTML = `<div class="wm-center">${escapeHtml(buildWatermarkText(p.watermarkText, p.name))}</div>`;
+  mediaWrap.appendChild(overlay);
+
+  const loading = document.createElement('div');
+  loading.className = 'lightbox-loading';
+  loading.textContent = 'Loading preview…';
+  mediaWrap.appendChild(loading);
+
+  video.onloadeddata = ()=>{ loading.remove(); };
+  video.onerror = ()=>{
+    // Rare now: the preview is always a server-transcoded H.264/AAC MP4,
+    // so a playback error here almost always means the network request
+    // for the preview itself failed (server down, preview file missing),
+    // not a codec problem.
+    console.error('Video preview failed:', m.name, video.error);
+    loading.remove();
+    video.remove();
+    overlay.remove();
+    showLightboxError(mediaWrap, `This video preview couldn't be loaded. Check that the processing server is reachable, or re-upload the file in a new project.`);
+  };
+
+  video.src = m.previewUrl;
+  const playPromise = video.play();
+  if(playPromise && playPromise.catch){
+    // Autoplay can be blocked by the browser; that's fine — controls
+    // are still clickable now, so the user can just press play.
+    playPromise.catch(()=>{ loading.remove(); });
+  }
+}
+
+async function copyLink(url){
+  // Primary path: async Clipboard API (needs a secure context + permission).
+  try{
+    if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(url);
+      toast('Client link copied.', 'ok');
+      return;
+    }
+    throw new Error('clipboard-api-unavailable');
+  }catch(err){
+    // Fallback: hidden textarea + execCommand, works in sandboxed/insecure contexts.
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.position = 'fixed';
+      ta.style.top = '-1000px';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      ta.setSelectionRange(0, url.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if(ok){ toast('Client link copied.', 'ok'); }
+      else { toast('Could not copy automatically — select and copy the link manually.', 'danger'); }
+    }catch(err2){
+      toast('Could not copy automatically — select and copy the link manually.', 'danger');
+    }
+  }
+}
+
+function confirmMarkPaid(id){
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal">
+      <h3>Mark this project as paid?</h3>
+      <p>Once this project is marked as paid, the original file link provided for this project will become available to the client. Make sure payment has been successfully received before continuing.</p>
+      <div class="actions">
+        <button class="btn btn-ghost" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
+        <button class="btn btn-primary" onclick="doMarkPaid('${id}')">Mark as Paid</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+}
+async function doMarkPaid(id){
+  const p = state.projects.find(x=>x.id===id);
+  p.paymentStatus = 'paid';
+  p.paidAt = Date.now();
+  await saveProjects();
+  document.querySelector('.modal-backdrop')?.remove();
+  toast('Project marked as paid.', 'ok');
+  toast('Original files unlocked.', 'ok');
+  render();
+}
+
+/* ================= PROJECT — CLIENT VIEW ================= */
+function renderClientView(app, id){
+  const p = state.projects.find(x=>x.id===id);
+  if(!p){ app.innerHTML = notFoundBlock(); return; }
+  if(isLinkExpired(p)){ app.innerHTML = expiredLinkBlock(); return; }
+  if(mediaStore[id] === undefined){
+    app.innerHTML = loadingBlock();
+    ensureMediaLoaded(id);
+    return;
+  }
+  const media = mediaStore[id] || [];
+  const paid = p.paymentStatus === 'paid';
+
+  app.innerHTML = `
+    <div style="max-width:900px;margin:0 auto;">
+      <div class="topbar" style="margin-bottom:8px;">
+        <div class="brand"><div class="mark">🔒</div> Seal</div>
+        <button class="btn btn-ghost btn-sm" onclick="go('#/project/${id}')">← Back to owner view</button>
+      </div>
+      <div class="role-banner client">You're viewing the client-facing page for this link — no account required.</div>
+
+      <h1 style="font-family:var(--font-display);font-size:24px;margin-bottom:22px;">${escapeHtml(p.name)}</h1>
+
+      <div class="unlock-hero ${paid?'paid':'pending'}">
+        <div class="lockicon">${paid?'🔓':'🔒'}</div>
+        <h2>${paid?'PAYMENT COMPLETE':'PAY TO UNLOCK'}</h2>
+        <p>${paid
+          ? 'Payment has been confirmed. Your original, full-resolution files are available below.'
+          : 'Complete your payment with the freelancer to receive access to the original, unwatermarked files.'}</p>
+        ${paid ? `
+          <div class="original-link-box">
+            <span>📂</span>
+            <a href="${escapeAttr(p.originalLink)}" target="_blank">${escapeHtml(p.originalLink)}</a>
+          </div>
+        ` : `
+          <button class="btn btn-primary" onclick="toast('This is a UI mock — payment is confirmed by the freelancer once received.')">Complete Payment</button>
+        `}
+      </div>
+
+      <div class="section-title">Preview (${media.length} file${media.length!==1?'s':''})</div>
+      ${media.length===0 ? `<div class="empty-state"><p>No preview media available in this session.</p></div>` : `
+      <div class="media-grid">
+        ${media.map(m=>mediaCard(m,p.watermarkText,id)).join('')}
+      </div>`}
+
+      <div class="demo-note">Downloads, right-click save, and dev-tools inspection are not true security boundaries — they only discourage casual copying. The real protection is server-side: this prototype never gives the client route access to <code>originalLink</code> until <code>paymentStatus === 'paid'</code>, and a production backend would enforce that same check on every API response, not just in the UI.</div>
+    </div>
+  `;
+}
+
+function notFoundBlock(){
+  return `<div class="empty-state" style="margin-top:40px;"><div class="big">🚫</div><h3>Project not found</h3><p>This link may be invalid, or the project was deleted.</p><div style="margin-top:16px;"><button class="btn btn-ghost" onclick="go('#/dashboard')">Go to dashboard</button></div></div>`;
+}
+function expiredLinkBlock(){
+  return `<div class="empty-state" style="margin-top:40px;"><div class="big">⏳</div><h3>This link has expired</h3><p>For security, client links stop working 24 hours after payment is confirmed. Please contact the freelancer if you still need access.</p></div>`;
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+/* ---------------- INIT ---------------- */
+(async function init(){
+  await loadState();
+  await purgeExpiredProjects();
+  render();
+  // Re-check every minute in case a project crosses its 48hr deletion
+  // mark while the app stays open in the tab.
+  setInterval(async ()=>{
+    const changed = await purgeExpiredProjects();
+    if(changed) render();
+  }, 60000);
+})();
+</script>
+</body>
+</html>
